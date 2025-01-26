@@ -14,7 +14,7 @@
         textarea {
             width: 100%;
             height: 200px;
-            margin-bottom: 10px;
+            margin-bottom: px;
         }
         button {
             padding: 10px 20px;
@@ -22,9 +22,20 @@
             color: white;
             border: none;
             cursor: pointer;
+            margin-right: 10px;
         }
         button:hover {
             background-color: #45a049;
+        }
+        #error {
+            color: red;
+            margin-top: 10px;
+        }
+        #copyButton {
+            background-color: #008CBA;
+        }
+        #copyButton:hover {
+            background-color: #007BA;
         }
     </style>
 </head>
@@ -45,10 +56,14 @@
         <h2>Output</h2>
         <textarea id="output" readonly></textarea>
     </div>
+    <div>
+        <button id="copyButton" onclick="copyOutput()" title="Copy output to clipboard">Copy Output</button>
+    </div>
+    <div id="error" aria-live="polite"></div>
 
     <script>
         function splitContent(content) {
-            const pattern = /((?:^|\n)\/\/.*(?:\n|$))/;
+            const pattern = /(?:<!--[\s\S]*?-->)|(?:\/\/.*)|(?:#.*)/g;
             return content.split(pattern).filter(part => part.trim());
         }
 
@@ -56,10 +71,10 @@
             let merged = [];
             let i = 0, j = 0;
             while (i < originalParts.length && j < changesParts.length) {
-                if (originalParts[i].trim().startsWith('//')) {
+                if (isComment(originalParts[i])) {
                     merged.push(originalParts[i]);
                     i++;
-                } else if (changesParts[j].trim().startsWith('//')) {
+                } else if (isComment(changesParts[j])) {
                     j++;
                 } else {
                     merged.push(changesParts[j]);
@@ -70,16 +85,83 @@
             return merged.join('');
         }
 
+        function isComment(text) {
+            return /^(?:\/\/|#|<!--)/.test(text.trim());
+        }
+
+        function removeUnchangedComments(content) {
+            return content.replace(/(?:\/\/|#).*(?:unchanged|rest of).*\n?/g, '');
+        }
+
         function updateFile() {
             const originalContent = document.getElementById('original').value;
             const modifiedContent = document.getElementById('modified').value;
+            const errorElement = document.getElementById('error');
+            errorElement.textContent = '';
 
-            const originalParts = splitContent(originalContent);
-            const modifiedParts = splitContent(modifiedContent);
+            if (!originalContent.trim() || !modifiedContent.trim()) {
+                errorElement.textContent = 'Please provide both original and modified content.';
+                return;
+            }
 
-            const updatedContent = mergeChanges(originalParts, modifiedParts);
+            try {
+                const originalParts = splitContent(originalContent);
+                const modifiedParts = splitContent(modifiedContent);
 
-            document.getElementById('output').value = updatedContent;
+                let updatedContent = mergeChanges(originalParts, modifiedParts);
+                updatedContent = removeUnchangedComments(updatedContent);
+
+                document.getElementById('output').value = updatedContent;
+            } catch (error) {
+                errorElement.textContent = 'An error occurred while processing the files: ' + error.message;
+            }
+        }
+
+        function copyOutput() {
+            const outputText = document.getElementById('output').value;
+            const copyButton = document.getElementById('copyButton');
+
+            if (!outputText) {
+                document.getElementById('error').textContent = 'No output to copy.';
+                return;
+            }
+
+            if (navigator.clipboard && window.isSecureContext) {
+                // Use Clipboard API if available and in a secure context
+                navigator.clipboard.writeText(outputText).then(() => {
+                    updateCopyButtonText(copyButton);
+                }, () => {
+                    document.getElementById('error').textContent = 'Failed to copy text.';
+                });
+            } else {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = outputText;
+                textArea.style.position = 'fixed';  // Avoid scrolling to bottom
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+
+                try {
+                    document.execCommand('copy');
+                    updateCopyButtonText(copyButton);
+                } catch (err) {
+                    document.getElementById('error').textContent = 'Failed to copy text.';
+                }
+
+                document.body.removeChild(textArea);
+            }
+        }
+
+        function updateCopyButtonText(button) {
+            const originalText = button.textContent;
+            button.textContent = 'Copied!';
+            button.setAttribute('aria-label', 'Output copied to clipboard');
+
+            setTimeout(() => {
+                button.textContent = originalText;
+                button.setAttribute('aria-label', 'Copy output to clipboard');
+            }, 000);
         }
     </script>
 </body>
