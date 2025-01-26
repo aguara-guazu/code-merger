@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Updater</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>File Updater</h1>
+    <div>
+        <h2>Original File</h2>
+        <textarea id="original" placeholder="Paste original file content here..."></textarea>
+    </div>
+    <div>
+        <h2>Modified File</h2>
+        <textarea id="modified" placeholder="Paste modified file content here..."></textarea>
+    </div>
+    <div>
+        <button onclick="updateFile()">Update File</button>
+    </div>
+    <div>
+        <h2>Output</h2>
+        <textarea id="output" readonly></textarea>
+    </div>
+
+    <script>
+        function splitContent(content) {
+            const pattern = /((?:^|\n)\/\/.*(?:\n|$))/;
+            return content.split(pattern).filter(part => part.trim());
+        }
+
+        function mergeChanges(originalParts, changesParts) {
+            let merged = [];
+            let i = 0, j = 0;
+            while (i < originalParts.length && j < changesParts.length) {
+                if (originalParts[i].trim().startsWith('//')) {
+                    merged.push(originalParts[i]);
+                    i++;
+                } else if (changesParts[j].trim().startsWith('//')) {
+                    j++;
+                } else {
+                    merged.push(changesParts[j]);
+                    i++;
+                    j++;
+                }
+            }
+            return merged.join('');
+        }
+
+        function updateFile() {
+            const originalContent = document.getElementById('original').value;
+            const modifiedContent = document.getElementById('modified').value;
+
+            const originalParts = splitContent(originalContent);
+            const modifiedParts = splitContent(modifiedContent);
+
+            const updatedContent = mergeChanges(originalParts, modifiedParts);
+
+            document.getElementById('output').value = updatedContent;
+        }
+    </script>
+</body>
+</html>
